@@ -1,7 +1,63 @@
 import { useEffect, useState } from "react";
 import { useDispatch, useSelector } from "react-redux";
+import styled from "styled-components";
 import type { RootState } from "../redux/store";
 import { setFilters } from "../redux/citySlice";
+
+/* --- styled components --- */
+
+const Panel = styled.div`
+  position: absolute;
+  top: 20px;
+  left: 20px;
+  z-index: 1000;
+
+  width: 260px;
+  padding: 14px;
+
+  background: ${({ theme }) => theme.body};
+  color: ${({ theme }) => theme.text};
+
+  border-radius: 8px;
+  border: 1px solid ${({ theme }) => theme.text};
+
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.25);
+  font-family: inherit;
+`;
+
+const Title = styled.div`
+  font-weight: bold;
+  margin-bottom: 12px;
+`;
+
+const Label = styled.label`
+  display: block;
+  font-size: 14px;
+  margin-bottom: 4px;
+`;
+
+const TextInput = styled.input`
+  width: 100%;
+  padding: 6px 8px;
+  box-sizing: border-box;
+
+  background: ${({ theme }) => theme.body};
+  color: ${({ theme }) => theme.text};
+
+  border: 1px solid ${({ theme }) => theme.text};
+  border-radius: 4px;
+`;
+
+const RangeInput = styled.input`
+  width: 100%;
+`;
+
+const Value = styled.div`
+  font-size: 12px;
+  margin-top: 4px;
+`;
+
+/* --- component --- */
 
 export default function FiltersPanel() {
   const dispatch = useDispatch();
@@ -10,14 +66,11 @@ export default function FiltersPanel() {
     (state: RootState) => state.city.filters
   );
 
-  const [name, setName] = useState<string>(
-    filters.name ?? ""
-  );
-
+  const [name, setName] = useState(filters.name);
   const [minPopulation, setMinPopulation] =
-    useState<number>(filters.population[0] ?? 0);
+    useState<number>(filters.population[0]);
 
-  /* --- debounce 200 ms (REQUIRED BY ASSIGNMENT) --- */
+  /* --- debounce 200 ms (REQUIRED) --- */
   useEffect(() => {
     const timer = setTimeout(() => {
       dispatch(
@@ -35,67 +88,26 @@ export default function FiltersPanel() {
   }, [name, minPopulation, dispatch, filters.population]);
 
   return (
-    <div
-      style={{
-        position: "absolute",
-        top: 12,
-        left: 12,
-        zIndex: 1000,
-        background: "#ffffff",
-        padding: 14,
-        border: "1px solid #333",
-        borderRadius: 8,
-        width: 240,
-        boxShadow: "0 2px 6px rgba(0,0,0,0.15)",
-      }}
-    >
-      <div
-        style={{
-          fontWeight: "bold",
-          marginBottom: 8,
-        }}
-      >
-        Filters
-      </div>
+    <Panel>
+      <Title>Filters</Title>
 
-      {/* --- city name filter --- */}
+      {/* --- name filter --- */}
       <div style={{ marginBottom: 12 }}>
-        <label
-          style={{
-            display: "block",
-            fontSize: 14,
-            marginBottom: 4,
-          }}
-        >
-          City name
-        </label>
-        <input
+        <Label>City name</Label>
+        <TextInput
           type="text"
           value={name}
+          placeholder="e.g. War"
           onChange={(e) =>
             setName(e.target.value)
           }
-          placeholder="e.g. War"
-          style={{
-            width: "100%",
-            padding: "4px 6px",
-            boxSizing: "border-box",
-          }}
         />
       </div>
 
       {/* --- population filter --- */}
       <div>
-        <label
-          style={{
-            display: "block",
-            fontSize: 14,
-            marginBottom: 4,
-          }}
-        >
-          Min population
-        </label>
-        <input
+        <Label>Min population</Label>
+        <RangeInput
           type="range"
           min={0}
           max={10_000_000}
@@ -106,17 +118,11 @@ export default function FiltersPanel() {
               Number(e.target.value)
             )
           }
-          style={{ width: "100%" }}
         />
-        <div
-          style={{
-            fontSize: 12,
-            marginTop: 4,
-          }}
-        >
+        <Value>
           {minPopulation.toLocaleString()}
-        </div>
+        </Value>
       </div>
-    </div>
+    </Panel>
   );
 }
