@@ -1,17 +1,16 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useDispatch, useSelector } from "react-redux";
 import styled from "styled-components";
 import type { RootState } from "../redux/store";
-import { setFilters } from "../redux/citySlice";
+import { setFilters, focusCity } from "../redux/citySlice";
 
-/* --- styled components --- */
+/* --- styled components (REQUIRED) --- */
 
 const Panel = styled.div`
   position: absolute;
   top: 20px;
   left: 20px;
   z-index: 1000;
-
   width: 260px;
   padding: 14px;
 
@@ -20,9 +19,7 @@ const Panel = styled.div`
 
   border-radius: 8px;
   border: 1px solid ${({ theme }) => theme.text};
-
   box-shadow: 0 2px 6px rgba(0, 0, 0, 0.25);
-  font-family: inherit;
 `;
 
 const Title = styled.div`
@@ -36,19 +33,13 @@ const Label = styled.label`
   margin-bottom: 4px;
 `;
 
-const TextInput = styled.input`
+const Input = styled.input`
   width: 100%;
-  padding: 6px 8px;
-  box-sizing: border-box;
-
-  background: ${({ theme }) => theme.body};
-  color: ${({ theme }) => theme.text};
-
-  border: 1px solid ${({ theme }) => theme.text};
-  border-radius: 4px;
+  padding: 6px;
+  margin-bottom: 4px;
 `;
 
-const RangeInput = styled.input`
+const Range = styled.input`
   width: 100%;
 `;
 
@@ -57,72 +48,119 @@ const Value = styled.div`
   margin-top: 4px;
 `;
 
+const Suggestions = styled.ul`
+  list-style: none;
+  margin: 0 0 8px 0;
+  padding: 0;
+  border: 1px solid ${({ theme }) => theme.text};
+  border-radius: 4px;
+`;
+
+const Suggestion = styled.li`
+  padding: 4px 6px;
+  cursor: pointer;
+
+  &:hover {
+    background: rgba(0, 0, 0, 0.1);
+  }
+`;
+
 /* --- component --- */
 
 export default function FiltersPanel() {
   const dispatch = useDispatch();
 
-  const filters = useSelector(
-    (state: RootState) => state.city.filters
+  const { cities, filters } = useSelector(
+    (s: RootState) => s.city
   );
 
   const [name, setName] = useState(filters.name);
-  const [minPopulation, setMinPopulation] =
-    useState<number>(filters.population[0]);
+  const [minPopulation, setMinPopulation] = useState(
+    filters.population[0]
+  );
 
-  /* --- debounce 200 ms (REQUIRED) --- */
+  /* --- dynamic max population from data --- */
+  const maxPopulation = useMemo(() => {
+    if (!cities.length) return 10_000_000;
+    return Math.max(
+      ...cities.map((c) => c.population ?? 0),
+      0
+    );
+  }, [cities]);
+
+  /* --- 3 autocomplete suggestions --- */
+  const suggestions = useMemo(() => {
+    if (!name) return [];
+
+    return cities
+      .filter((c) =>
+        c.name.toLowerCase().includes(name.toLowerCase())
+      )
+      .slice(0, 3);
+  }, [name, cities]);
+
+  /* --- debounce 200ms (REQUIRED) --- */
   useEffect(() => {
-    const timer = setTimeout(() => {
+    const id = setTimeout(() => {
       dispatch(
         setFilters({
           name,
-          population: [
-            minPopulation,
-            filters.population[1],
-          ],
+          population: [minPopulation, maxPopulation],
         })
       );
     }, 200);
 
-    return () => clearTimeout(timer);
-  }, [name, minPopulation, dispatch, filters.population]);
+    return () => clearTimeout(id);
+  }, [name, minPopulation, maxPopulation, dispatch]);
 
   return (
     <Panel>
       <Title>Filters</Title>
 
-      {/* --- name filter --- */}
-      <div style={{ marginBottom: 12 }}>
-        <Label>City name</Label>
-        <TextInput
-          type="text"
-          value={name}
-          placeholder="e.g. War"
-          onChange={(e) =>
-            setName(e.target.value)
-          }
-        />
-      </div>
+      {/* --- city name search --- */}
+      <Label>City name</Label>
+      <Input
+        value={name}
+        placeholder="Type city name"
+        onChange={(e) => setName(e.target.value)}
+      />
+
+      {suggestions.length > 0 && (
+        <Suggestions>
+          {suggestions.map((c) => (
+            <Suggestion
+              key={c.id}
+              onClick={() => {
+                setName(c.name);
+                dispatch(
+                  focusCity({ lat: c.lat, lon: c.lon })
+                );
+              }}
+            >
+              {c.name}
+            </Suggestion>
+          ))}
+        </Suggestions>
+      )}
 
       {/* --- population filter --- */}
-      <div>
-        <Label>Min population</Label>
-        <RangeInput
-          type="range"
-          min={0}
-          max={10_000_000}
-          step={100_000}
-          value={minPopulation}
-          onChange={(e) =>
-            setMinPopulation(
-              Number(e.target.value)
-            )
-          }
-        />
-        <Value>
-          {minPopulation.toLocaleString()}
-        </Value>
-      </div>
+      <Label>Min population</Label>
+      <Range
+        type="range"
+        min={0}
+        max={maxPopulation}
+        step={Math.max(
+          Math.floor(maxPopulation / 100),
+          10_000
+        )}
+        value={minPopulation}
+        onChange={(e) =>
+          setMinPopulation(Number(e.target.value))
+        }
+      />
+      <Value>
+        {minPopulation.toLocaleString()}+
+      </Value>
     </Panel>
   );
 }

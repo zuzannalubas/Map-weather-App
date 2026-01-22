@@ -2,24 +2,39 @@ import {
   MapContainer,
   TileLayer,
   Marker,
-  Tooltip,
+  Popup,
   useMapEvents,
+  ZoomControl,
+  useMap,
 } from "react-leaflet";
 import { useEffect, useState } from "react";
 import { useDispatch, useSelector } from "react-redux";
 import type { RootState } from "../redux/store";
-import { mapBoundsChanged } from "../redux/citySlice";
+import {
+  mapBoundsChanged,
+  clearFocusCity,
+} from "../redux/citySlice";
 import FiltersPanel from "./FiltersPanel";
 import CenterMapButton from "./CenterMapButton";
 
-/* --- reacts to map movement and dispatches bounds --- */
+/* --- map events: load + move --- */
 function MapEvents() {
   const dispatch = useDispatch();
 
   useMapEvents({
+    load: (e) => {
+      const b = e.target.getBounds();
+      dispatch(
+        mapBoundsChanged({
+          south: b.getSouth(),
+          west: b.getWest(),
+          north: b.getNorth(),
+          east: b.getEast(),
+        })
+      );
+    },
     moveend: (e) => {
       const b = e.target.getBounds();
-
       dispatch(
         mapBoundsChanged({
           south: b.getSouth(),
@@ -34,16 +49,39 @@ function MapEvents() {
   return null;
 }
 
+/* --- focus map on searched city --- */
+function FocusOnCity() {
+  const map = useMap();
+  const dispatch = useDispatch();
+  const focusedCity = useSelector(
+    (s: RootState) => s.city.focusedCity
+  );
+
+  useEffect(() => {
+    if (!focusedCity) return;
+
+    map.flyTo(
+      [focusedCity.lat, focusedCity.lon],
+      10,
+      { duration: 1 }
+    );
+
+    dispatch(clearFocusCity());
+  }, [focusedCity, map, dispatch]);
+
+  return null;
+}
+
 export default function MapView() {
   const { cities, filters, loading } = useSelector(
     (state: RootState) => state.city
   );
 
   const [center, setCenter] = useState<[number, number]>([
-    52.2297, 21.0122, // fallback: Warsaw
+    52.2297, 21.0122,
   ]);
 
-  /* --- center map on user location (initial) --- */
+  /* --- center on user location --- */
   useEffect(() => {
     navigator.geolocation.getCurrentPosition(
       (pos) => {
@@ -61,20 +99,21 @@ export default function MapView() {
     temp: number;
     description: string;
   }) => {
-    const tempNice =
+    const niceTemp =
       weather.temp >= 18 && weather.temp <= 25;
-    const noRain = !weather.description
-      .toLowerCase()
-      .includes("rain");
+    const noRain = !weather.description.includes("rain");
 
-    if (tempNice && noRain)
-      return { label: "nice", emoji: "☀️" };
-
-    if (tempNice || noRain)
-      return { label: "passable", emoji: "⛅" };
-
-    return { label: "not nice", emoji: "🌧️" };
+    if (niceTemp && noRain) return "☀️";
+    if (niceTemp || noRain) return "⛅";
+    return "🌧️";
   };
+
+  /* --- filters --- */
+  const visibleCities = cities.filter((city) =>
+    city.name
+      .toLowerCase()
+      .includes(filters.name.toLowerCase())
+  );
 
   return (
     <div
@@ -84,32 +123,29 @@ export default function MapView() {
         position: "relative",
       }}
     >
-      {/* --- filters panel (absolute overlay) --- */}
       <FiltersPanel />
 
-      {/* --- loading indicator (non-blocking) --- */}
       {loading && (
         <div
           style={{
             position: "absolute",
-            top: 10,
-            left: "50%",
-            transform: "translateX(-50%)",
+            bottom: 20,
+            right: 20,
             zIndex: 1000,
-            background: "white",
-            padding: "6px 12px",
-            border: "1px solid #333",
-            borderRadius: 4,
+            background: "rgba(255,255,255,0.9)",
+            padding: "8px 12px",
+            borderRadius: 6,
             fontWeight: "bold",
           }}
         >
-          Loading...
+          Loading data…
         </div>
       )}
 
       <MapContainer
         center={center}
-        zoom={8}
+        zoom={7}
+        zoomControl={false}
         style={{ height: "100%", width: "100%" }}
       >
         <TileLayer
@@ -117,49 +153,30 @@ export default function MapView() {
           url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
         />
 
-        {/* --- map movement listener --- */}
+        <ZoomControl position="bottomleft" />
         <MapEvents />
-
-        {/* --- custom button to center map --- */}
+        <FocusOnCity />
         <CenterMapButton center={center} />
 
-        {/* --- markers --- */}
-        {cities
-          .filter((city) =>
-            city.name
-              .toLowerCase()
-              .includes(filters.name.toLowerCase())
-          )
-          .filter((city) => {
-            const pop = city.population ?? 0;
-            return pop >= filters.population[0];
-          })
-          .map((city) => {
-            if (!city.weather) return null;
-
-            const w = classifyWeather(city.weather);
-
-            return (
-              <Marker
-                key={city.id}
-                position={[city.lat, city.lon]}
-              >
-                <Tooltip>
-                  <div>
-                    <strong>
-                      {city.name} {w.emoji}
-                    </strong>
-                    <br />
-                    Temp: {city.weather.temp}°C
-                    <br />
-                    {city.weather.description}
-                    <br />
-                    Class: {w.label}
-                  </div>
-                </Tooltip>
-              </Marker>
-            );
-          })}
+        {visibleCities.map((city) =>
+          city.weather ? (
+            <Marker
+              key={city.id}
+              position={[city.lat, city.lon]}
+            >
+              <Popup autoClose={false} closeOnClick={false}>
+                <strong>
+                  {city.name}{" "}
+                  {classifyWeather(city.weather)}
+                </strong>
+                <br />
+                {city.weather.temp}°C
+                <br />
+                {city.weather.description}
+              </Popup>
+            </Marker>
+          ) : null
+        )}
       </MapContainer>
     </div>
   );

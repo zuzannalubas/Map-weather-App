@@ -1,6 +1,5 @@
 const API_KEY = import.meta.env.VITE_WEATHER_API_KEY;
-const BASE_URL =
-  "https://api.openweathermap.org/data/2.5/weather";
+const BASE_URL = "https://api.openweathermap.org/data/2.5/weather";
 
 export interface WeatherData {
   temp: number;
@@ -16,9 +15,7 @@ export async function getWeather(
       `${BASE_URL}?lat=${lat}&lon=${lon}&units=metric&appid=${API_KEY}`
     );
 
-    if (!res.ok) {
-      return null;
-    }
+    if (!res.ok) return null;
 
     const data = await res.json();
 

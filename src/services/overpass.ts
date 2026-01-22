@@ -15,20 +15,26 @@ export async function getCities(bounds: {
   east: number;
 }): Promise<City[]> {
   const query = `
-    [out:json][timeout:25];
-    (
-      node["place"="city"](${bounds.south},${bounds.west},${bounds.north},${bounds.east});
-      node["place"="town"](${bounds.south},${bounds.west},${bounds.north},${bounds.east});
-    );
-    out body;
-  `;
+[out:json][timeout:25];
+(
+  node["place"="city"](${bounds.south},${bounds.west},${bounds.north},${bounds.east});
+  node["place"="town"](${bounds.south},${bounds.west},${bounds.north},${bounds.east});
+);
+out body;
+`;
 
   const response = await fetch(OVERPASS_URL, {
     method: "POST",
-    body: query,
+    headers: {
+      "Content-Type": "application/x-www-form-urlencoded",
+    },
+    body: `data=${encodeURIComponent(query)}`,
   });
 
+  if (!response.ok) return [];
+
   const data = await response.json();
+  if (!data.elements) return [];
 
   return data.elements
     .filter((el: any) => el.tags?.name)
