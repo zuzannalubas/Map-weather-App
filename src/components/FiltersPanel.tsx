@@ -9,7 +9,7 @@ import { setFilters, focusCity } from "../redux/citySlice";
 const Panel = styled.div`
   position: absolute;
   top: 20px;
-  right: 20px; /* ✅ moved to right */
+  left: 20px;
   z-index: 1000;
 
   width: 260px;
