@@ -9,22 +9,23 @@ import { useEffect, useState } from "react";
 import { useDispatch, useSelector } from "react-redux";
 import type { RootState } from "../redux/store";
 import { mapBoundsChanged } from "../redux/citySlice";
-import "leaflet/dist/leaflet.css";
+import FiltersPanel from "./FiltersPanel";
+import CenterMapButton from "./CenterMapButton";
 
-/* --- helper component: reacts to map movement --- */
+/* --- reacts to map movement and dispatches bounds --- */
 function MapEvents() {
   const dispatch = useDispatch();
 
   useMapEvents({
-    moveend: (event) => {
-      const bounds = event.target.getBounds();
+    moveend: (e) => {
+      const b = e.target.getBounds();
 
       dispatch(
         mapBoundsChanged({
-          south: bounds.getSouth(),
-          west: bounds.getWest(),
-          north: bounds.getNorth(),
-          east: bounds.getEast(),
+          south: b.getSouth(),
+          west: b.getWest(),
+          north: b.getNorth(),
+          east: b.getEast(),
         })
       );
     },
@@ -34,16 +35,15 @@ function MapEvents() {
 }
 
 export default function MapView() {
-  const dispatch = useDispatch();
-  const { cities, loading } = useSelector(
+  const { cities, filters, loading } = useSelector(
     (state: RootState) => state.city
   );
 
   const [center, setCenter] = useState<[number, number]>([
-    52.2297, 21.0122, // Warsaw fallback
+    52.2297, 21.0122, // fallback: Warsaw
   ]);
 
-  /* --- center map on user geolocation --- */
+  /* --- center map on user location (initial) --- */
   useEffect(() => {
     navigator.geolocation.getCurrentPosition(
       (pos) => {
@@ -68,23 +68,26 @@ export default function MapView() {
       .includes("rain");
 
     if (tempNice && noRain)
-      return { type: "nice", emoji: "☀️" };
+      return { label: "nice", emoji: "☀️" };
 
     if (tempNice || noRain)
-      return { type: "passable", emoji: "⛅" };
+      return { label: "passable", emoji: "⛅" };
 
-    return { type: "not nice", emoji: "🌧️" };
+    return { label: "not nice", emoji: "🌧️" };
   };
 
   return (
     <div
       style={{
         height: "100vh",
-        width: "100%",
+        width: "100vw",
         position: "relative",
       }}
     >
-      {/* --- loading spinner (non-blocking) --- */}
+      {/* --- filters panel (absolute overlay) --- */}
+      <FiltersPanel />
+
+      {/* --- loading indicator (non-blocking) --- */}
       {loading && (
         <div
           style={{
@@ -108,49 +111,55 @@ export default function MapView() {
         center={center}
         zoom={8}
         style={{ height: "100%", width: "100%" }}
-        whenCreated={(map) => {
-          setTimeout(() => {
-            map.invalidateSize();
-          }, 0);
-        }}
       >
         <TileLayer
           attribution="© OpenStreetMap"
           url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
         />
 
+        {/* --- map movement listener --- */}
         <MapEvents />
 
-        {cities.map((city) => {
-          if (!city.weather) {
-            return null;
-          }
+        {/* --- custom button to center map --- */}
+        <CenterMapButton center={center} />
 
-          const weatherClass = classifyWeather(
-            city.weather
-          );
+        {/* --- markers --- */}
+        {cities
+          .filter((city) =>
+            city.name
+              .toLowerCase()
+              .includes(filters.name.toLowerCase())
+          )
+          .filter((city) => {
+            const pop = city.population ?? 0;
+            return pop >= filters.population[0];
+          })
+          .map((city) => {
+            if (!city.weather) return null;
 
-          return (
-            <Marker
-              key={city.id}
-              position={[city.lat, city.lon]}
-            >
-              <Tooltip>
-                <div>
-                  <strong>
-                    {city.name} {weatherClass.emoji}
-                  </strong>
-                  <br />
-                  Temp: {city.weather.temp}°C
-                  <br />
-                  {city.weather.description}
-                  <br />
-                  Class: {weatherClass.type}
-                </div>
-              </Tooltip>
-            </Marker>
-          );
-        })}
+            const w = classifyWeather(city.weather);
+
+            return (
+              <Marker
+                key={city.id}
+                position={[city.lat, city.lon]}
+              >
+                <Tooltip>
+                  <div>
+                    <strong>
+                      {city.name} {w.emoji}
+                    </strong>
+                    <br />
+                    Temp: {city.weather.temp}°C
+                    <br />
+                    {city.weather.description}
+                    <br />
+                    Class: {w.label}
+                  </div>
+                </Tooltip>
+              </Marker>
+            );
+          })}
       </MapContainer>
     </div>
   );

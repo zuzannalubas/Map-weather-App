@@ -1,7 +1,8 @@
 const API_KEY = import.meta.env.VITE_WEATHER_API_KEY;
-const BASE_URL = "https://api.openweathermap.org/data/2.5/weather";
+const BASE_URL =
+  "https://api.openweathermap.org/data/2.5/weather";
 
-export interface WeatherResponse {
+export interface WeatherData {
   temp: number;
   description: string;
 }
@@ -9,14 +10,13 @@ export interface WeatherResponse {
 export async function getWeather(
   lat: number,
   lon: number
-): Promise<WeatherResponse | null> {
+): Promise<WeatherData | null> {
   try {
-    const url = `${BASE_URL}?lat=${lat}&lon=${lon}&units=metric&appid=${API_KEY}`;
-
-    const res = await fetch(url);
+    const res = await fetch(
+      `${BASE_URL}?lat=${lat}&lon=${lon}&units=metric&appid=${API_KEY}`
+    );
 
     if (!res.ok) {
-      console.error("Weather API error:", res.status);
       return null;
     }
 
@@ -26,8 +26,7 @@ export async function getWeather(
       temp: data.main.temp,
       description: data.weather[0].description,
     };
-  } catch (error) {
-    console.error("Weather fetch failed:", error);
+  } catch {
     return null;
   }
 }

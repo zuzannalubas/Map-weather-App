@@ -1,20 +1,21 @@
+import React from "react";
+import ReactDOM from "react-dom/client";
+import { Provider } from "react-redux";
+import { store } from "./redux/store";
+import App from "./App";
 import "leaflet/dist/leaflet.css";
 
-import React from "react";
-import ReactDOM from "react-dom";
-import { Provider } from "react-redux";
-import App from "./App";
-import { store } from "./redux/store";
+const rootElement =
+  document.getElementById("root");
 
-const root = document.getElementById("root");
-
-if (!root) {
+if (!rootElement) {
   throw new Error("Root element not found");
 }
 
-ReactDOM.render(
-  <Provider store={store}>
-    <App />
-  </Provider>,
-  root
+ReactDOM.createRoot(rootElement).render(
+  <React.StrictMode>
+    <Provider store={store}>
+      <App />
+    </Provider>
+  </React.StrictMode>
 );
