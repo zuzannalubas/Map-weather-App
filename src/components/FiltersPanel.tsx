@@ -4,13 +4,14 @@ import styled from "styled-components";
 import type { RootState } from "../redux/store";
 import { setFilters, focusCity } from "../redux/citySlice";
 
-/* --- styled components (REQUIRED) --- */
+/* --- styled components --- */
 
 const Panel = styled.div`
   position: absolute;
   top: 20px;
-  left: 20px;
+  right: 20px; /* ✅ moved to right */
   z-index: 1000;
+
   width: 260px;
   padding: 14px;
 
@@ -19,6 +20,7 @@ const Panel = styled.div`
 
   border-radius: 8px;
   border: 1px solid ${({ theme }) => theme.text};
+
   box-shadow: 0 2px 6px rgba(0, 0, 0, 0.25);
 `;
 
@@ -36,11 +38,13 @@ const Label = styled.label`
 const Input = styled.input`
   width: 100%;
   padding: 6px;
-  margin-bottom: 4px;
+  box-sizing: border-box;
 `;
 
 const Range = styled.input`
   width: 100%;
+  box-sizing: border-box; /* ✅ prevents overflow */
+  margin: 0; /* ✅ fixes slider overflow */
 `;
 
 const Value = styled.div`
@@ -50,7 +54,7 @@ const Value = styled.div`
 
 const Suggestions = styled.ul`
   list-style: none;
-  margin: 0 0 8px 0;
+  margin: 4px 0 8px 0;
   padding: 0;
   border: 1px solid ${({ theme }) => theme.text};
   border-radius: 4px;
@@ -79,7 +83,6 @@ export default function FiltersPanel() {
     filters.population[0]
   );
 
-  /* --- dynamic max population from data --- */
   const maxPopulation = useMemo(() => {
     if (!cities.length) return 10_000_000;
     return Math.max(
@@ -88,7 +91,6 @@ export default function FiltersPanel() {
     );
   }, [cities]);
 
-  /* --- 3 autocomplete suggestions --- */
   const suggestions = useMemo(() => {
     if (!name) return [];
 
@@ -99,7 +101,7 @@ export default function FiltersPanel() {
       .slice(0, 3);
   }, [name, cities]);
 
-  /* --- debounce 200ms (REQUIRED) --- */
+  /* --- debounce 200 ms --- */
   useEffect(() => {
     const id = setTimeout(() => {
       dispatch(
