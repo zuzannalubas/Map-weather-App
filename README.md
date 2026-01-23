@@ -129,6 +129,7 @@ Map movement events trigger Redux actions, which are handled by epics
 City data is cached to prevent unnecessary reloads
 
 Weather data for visible cities is refreshed automatically every hour
+
 ---
 ## Custom styled-components
 
