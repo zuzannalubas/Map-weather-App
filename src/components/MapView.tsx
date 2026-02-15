@@ -110,7 +110,6 @@ export default function MapView() {
         />
 
         <ZoomControl position="bottomleft" />
-
         <MapEvents />
         <FocusOnCity />
         <CenterMapButton center={center} />
