@@ -1,8 +1,6 @@
 import {
   MapContainer,
   TileLayer,
-  Marker,
-  Popup,
   useMapEvents,
   ZoomControl,
   useMap,
@@ -10,12 +8,11 @@ import {
 import { useEffect, useState } from "react";
 import { useDispatch, useSelector } from "react-redux";
 import type { RootState } from "../redux/store";
-import {
-  mapBoundsChanged,
-  clearFocusCity,
-} from "../redux/citySlice";
+import { mapBoundsChanged, clearFocusCity } from "../redux/citySlice";
 import FiltersPanel from "./FiltersPanel";
 import CenterMapButton from "./CenterMapButton";
+import WeatherMarker from "./WeatherMarker";
+import LoadingIndicator from "./LoadingIndicator";
 
 /* --- map events: load + move --- */
 function MapEvents() {
@@ -53,18 +50,12 @@ function MapEvents() {
 function FocusOnCity() {
   const map = useMap();
   const dispatch = useDispatch();
-  const focusedCity = useSelector(
-    (s: RootState) => s.city.focusedCity
-  );
+  const focusedCity = useSelector((s: RootState) => s.city.focusedCity);
 
   useEffect(() => {
     if (!focusedCity) return;
 
-    map.flyTo(
-      [focusedCity.lat, focusedCity.lon],
-      10,
-      { duration: 1 }
-    );
+    map.flyTo([focusedCity.lat, focusedCity.lon], 10, { duration: 1 });
 
     dispatch(clearFocusCity());
   }, [focusedCity, map, dispatch]);
@@ -77,42 +68,21 @@ export default function MapView() {
     (state: RootState) => state.city
   );
 
-  const [center, setCenter] = useState<[number, number]>([
-    52.2297, 21.0122,
-  ]);
+  const [center, setCenter] = useState<[number, number]>([52.2297, 21.0122]);
 
   /* --- center on user location --- */
   useEffect(() => {
     navigator.geolocation.getCurrentPosition(
       (pos) => {
-        setCenter([
-          pos.coords.latitude,
-          pos.coords.longitude,
-        ]);
+        setCenter([pos.coords.latitude, pos.coords.longitude]);
       },
       () => {}
     );
   }, []);
 
-  /* --- weather classification --- */
-  const classifyWeather = (weather: {
-    temp: number;
-    description: string;
-  }) => {
-    const niceTemp =
-      weather.temp >= 18 && weather.temp <= 25;
-    const noRain = !weather.description.includes("rain");
-
-    if (niceTemp && noRain) return "☀️";
-    if (niceTemp || noRain) return "⛅";
-    return "🌧️";
-  };
-
   /* --- filters --- */
   const visibleCities = cities.filter((city) =>
-    city.name
-      .toLowerCase()
-      .includes(filters.name.toLowerCase())
+    city.name.toLowerCase().includes(filters.name.toLowerCase())
   );
 
   return (
@@ -125,22 +95,8 @@ export default function MapView() {
     >
       <FiltersPanel />
 
-      {loading && (
-        <div
-          style={{
-            position: "absolute",
-            bottom: 20,
-            right: 20,
-            zIndex: 1000,
-            background: "rgba(255,255,255,0.9)",
-            padding: "8px 12px",
-            borderRadius: 6,
-            fontWeight: "bold",
-          }}
-        >
-          Loading data…
-        </div>
-      )}
+      {/* --- loading indicator --- */}
+      {loading && <LoadingIndicator />}
 
       <MapContainer
         center={center}
@@ -154,29 +110,14 @@ export default function MapView() {
         />
 
         <ZoomControl position="bottomleft" />
+
         <MapEvents />
         <FocusOnCity />
         <CenterMapButton center={center} />
 
-        {visibleCities.map((city) =>
-          city.weather ? (
-            <Marker
-              key={city.id}
-              position={[city.lat, city.lon]}
-            >
-              <Popup autoClose={false} closeOnClick={false}>
-                <strong>
-                  {city.name}{" "}
-                  {classifyWeather(city.weather)}
-                </strong>
-                <br />
-                {city.weather.temp}°C
-                <br />
-                {city.weather.description}
-              </Popup>
-            </Marker>
-          ) : null
-        )}
+        {visibleCities.map((city) => (
+          <WeatherMarker key={city.id} city={city} />
+        ))}
       </MapContainer>
     </div>
   );

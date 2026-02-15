@@ -1,14 +1,20 @@
-import { ofType } from "redux-observable";
+import { ofType, type Epic } from "redux-observable";
 import {
   debounceTime,
   switchMap,
   withLatestFrom,
+  catchError,
+  startWith,
 } from "rxjs/operators";
 import { from, of, interval } from "rxjs";
 import { setCities, setLoading, mapBoundsChanged } from "./citySlice";
 import type { RootState } from "./store";
 import { getCities } from "../services/overpass";
 import { getWeather } from "../services/weather";
+
+/* ===============================
+   Load cities + weather safely
+================================ */
 
 const loadCitiesWithWeather = async (
   bounds: any,
@@ -32,36 +38,48 @@ const loadCitiesWithWeather = async (
   );
 };
 
-export const mapBoundsEpic = (action$: any, state$: any) =>
+/* ===============================
+   Map move epic (typed)
+================================ */
+
+export const mapBoundsEpic: Epic<any, any, RootState> = (action$, state$) =>
   action$.pipe(
     ofType(mapBoundsChanged.type),
     debounceTime(300),
     withLatestFrom(state$),
-    switchMap(([action, state]: [any, RootState]) => {
+    switchMap(([action, state]) => {
       if (!action.payload) return of();
 
       return from(
-        loadCitiesWithWeather(
-          action.payload,
-          state.city.cityCache
-        )
+        loadCitiesWithWeather(action.payload, state.city.cityCache)
       ).pipe(
-        switchMap((cities) => of(setCities(cities)))
+        switchMap((cities) => of(setCities(cities), setLoading(false))),
+        startWith(setLoading(true)),
+        catchError((error) => {
+          console.error("Overpass error:", error);
+          return of(setLoading(false));
+        })
       );
     })
   );
 
-export const hourlyReloadEpic = (_: any, state$: any) =>
+/* ===============================
+   Hourly reload epic
+================================ */
+
+export const hourlyReloadEpic: Epic<any, any, RootState> = (_, state$) =>
   interval(60 * 60 * 1000).pipe(
     withLatestFrom(state$),
-    switchMap(([, state]: [any, RootState]) => {
+    switchMap(([, state]) => {
       const bounds = state.city.mapBounds;
       if (!bounds) return of();
 
-      return from(
-        loadCitiesWithWeather(bounds, {})
-      ).pipe(
-        switchMap((cities) => of(setCities(cities)))
+      return from(loadCitiesWithWeather(bounds, {})).pipe(
+        switchMap((cities) => of(setCities(cities))),
+        catchError((error) => {
+          console.error("Hourly reload error:", error);
+          return of();
+        })
       );
     })
   );

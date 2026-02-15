@@ -1,6 +1,8 @@
 import { createSlice, PayloadAction } from "@reduxjs/toolkit";
 
-/* --- types --- */
+/* =========================
+   Types
+========================= */
 
 export interface WeatherInfo {
   temp: number;
@@ -34,15 +36,15 @@ export interface CityState {
   loading: boolean;
   filters: CityFilters;
   mapBounds: MapBounds | null;
-
-  /* --- NEW: focus for search --- */
   focusedCity: {
     lat: number;
     lon: number;
   } | null;
 }
 
-/* --- initial state --- */
+/* =========================
+   Initial state
+========================= */
 
 const initialState: CityState = {
   cities: [],
@@ -56,7 +58,9 @@ const initialState: CityState = {
   focusedCity: null,
 };
 
-/* --- slice --- */
+/* =========================
+   Slice
+========================= */
 
 const citySlice = createSlice({
   name: "city",
@@ -65,9 +69,9 @@ const citySlice = createSlice({
     setCities(state, action: PayloadAction<City[]>) {
       state.cities = action.payload;
 
-      /* --- keep cache updated --- */
-      action.payload.forEach((c) => {
-        state.cityCache[c.id] = c;
+      // Update cache only with valid cities
+      action.payload.forEach((city) => {
+        state.cityCache[city.id] = city;
       });
     },
 
@@ -83,11 +87,7 @@ const citySlice = createSlice({
       state.mapBounds = action.payload;
     },
 
-    /* --- NEW: search focus --- */
-    focusCity(
-      state,
-      action: PayloadAction<{ lat: number; lon: number }>
-    ) {
+    focusCity(state, action: PayloadAction<{ lat: number; lon: number }>) {
       state.focusedCity = action.payload;
     },
 
@@ -97,7 +97,9 @@ const citySlice = createSlice({
   },
 });
 
-/* --- exports --- */
+/* =========================
+   Exports
+========================= */
 
 export const {
   setCities,
